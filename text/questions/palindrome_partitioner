@@ -1,7 +1,5 @@
 palindrome_partitioner
 py_palindrome_partitioner.py
-
-
 Assignment
 Given a string `s`, find the minimum number of cuts needed to partition it such that every resulting substring is a palindrome.
 

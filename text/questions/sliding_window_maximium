@@ -1,6 +1,5 @@
 sliding_window_maximium
 py_sliding_window_maximium.py
-
 Assignment
 Given a list of integers `nums` and an integer `k`, consider a "window" of size `k` sliding from left to right, one position at a time.
 

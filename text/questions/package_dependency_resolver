@@ -1,0 +1,44 @@
+package_dependency_resolver
+package_dependency_resolver.py
+
+Assignment
+Write a function that determines a valid package installation order by resolving dependencies. Use topological sorting to ensure dependencies are installed before the packages that require them.
+
+The function should:
+- Take a dictionary where keys are package names and values are lists of dependencies.
+- Return packages in installation order (dependencies first).
+- Return an empty list ([]) if no valid order exists (e.g., circular dependencies or self-dependencies).
+- Handle empty inputs and isolated dependency chains gracefully.
+- Ignore references to packages that are not present as keys in the input dictionary.
+- Ensure a package cannot be installed until all its dependencies are installed.
+
+Algorithm Details & Edge Cases:
+- Topological Sorting: Use a topological sort algorithm (e.g., Kahn's algorithm).
+- Dependency Priority: Process packages with no remaining dependencies first.
+- Deterministic Output: When multiple valid packages can be processed at the same time (choices exist), process them alphabetically to ensure deterministic output.
+- Empty Input: Return an empty list.
+- Multiple Independent Chains: Process all chains, respecting the alphabetical order rule.
+- Missing Dependencies: Ignore missing packages (treat them as if they don't exist in the requirements).
+Function signature
+def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
+Examples
+Input
+package_dependency_resolver({"app": ["database"], "database": ["driver"], "driver": []})
+Output
+["driver", "database", "app"]
+Input
+package_dependency_resolver({"A": [], "B": ["A"], "C": ["A", "B"]})
+Output
+["A", "B", "C"]
+Input
+package_dependency_resolver({})
+Output
+[]
+Input
+package_dependency_resolver({"X": ["Y"], "Y": ["X"]})
+Output
+[]
+Input
+package_dependency_resolver({"web": [], "api": [], "frontend": ["web"], "backend": ["api"]})
+Output
+["api", "web", "backend", "frontend"]
