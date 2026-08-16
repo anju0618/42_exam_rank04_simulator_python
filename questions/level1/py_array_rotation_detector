@@ -1,5 +1,3 @@
-py_array_rotation_detector
-py_array_rotation_detector.py
 Assignment
 Write a Python function that takes two lists (arrays) as parameters and determines if the second list is a rotation of the first list (left or right).
 

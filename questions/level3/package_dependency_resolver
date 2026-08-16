@@ -1,6 +1,3 @@
-package_dependency_resolver
-package_dependency_resolver.py
-
 Assignment
 Write a function that determines a valid package installation order by resolving dependencies. Use topological sorting to ensure dependencies are installed before the packages that require them.
 

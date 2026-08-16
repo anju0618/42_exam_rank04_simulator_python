@@ -1,5 +1,3 @@
-py_merge_sorted_list
-py_merge_sorted_list.py
 Assignment
 You are given a list of sorted integer sublists in any order.
 Merge all sublists into a single sorted list in ascending order and return it.

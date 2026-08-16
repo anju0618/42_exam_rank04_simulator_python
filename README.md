@@ -7,52 +7,42 @@
 ## 1. Package Dependency Resolver
 依存関係を解決し、インストール順序を決定する関数（トポロジカルソート）。
 
-### 解答（暗記向けシンプル版）
+> **注意（タイブレークの罠）**: `min()` で1つずつ拾う方式や、`heapq` に見つかり次第push/popするグローバルな優先度付きキュー方式は、**独立した依存チェーンが複数ある場合に公式の例と結果がズレます**。
+> 例: `{"web": [], "api": [], "frontend": ["web"], "backend": ["api"]}` の期待値は `["api", "web", "backend", "frontend"]` ですが、上記2方式はどちらも `["api", "backend", "web", "frontend"]` を返してしまいます（`api` の後、次に解禁される `backend` の方が `web` よりアルファベット順で早いため、先に選ばれてしまう）。
+> 正しくは「同じ深さ（波）で依存解決済みになったパッケージをまとめてアルファベット順に処理し、次の波にはまだ進まない」という**層（BFS）単位のタイブレーク**が必要です。
+
+### 解答（層ごとのKahnのアルゴリズム）
 ```python
 def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
-    res = []
-    while len(res) < len(packages):
-        # 未処理かつ、依存先が存在しないか既に解決済みのものを探す
-        ready = [p for p, deps in packages.items() if p not in res and all(d not in packages or d in res for d in deps)]
-        if not ready: return [] # 循環依存
-        res.append(min(ready)) # アルファベット順で処理
-    return res
-```
+    if not packages:
+        return []
 
-### 解説
-リストの内包表記と `all()` を使って、「まだインストールしておらず、必要な依存関係がすべてインストール済みのパッケージ」を毎ステップ探します。複数ある場合は `min()` でアルファベット順にインストールします。処理が進まなくなったら循環依存と判定し `[]` を返します。
-
-### 別解（Kahnのアルゴリズム + heapqを使った高速版: $O(V + E \log V)$）
-パッケージ数が多い場合は毎回全体をスキャンすると遅くなるため、入次数（in-degree）と優先度付きキュー（`heapq`）を使います。
-```python
-import heapq
-
-def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
-    in_degree = {p: 0 for p in packages}
     graph = {p: [] for p in packages}
-    
-    # グラフの構築と入次数の計算
+    in_degree = {p: 0 for p in packages}
     for p, deps in packages.items():
         for d in deps:
             if d in packages:
                 graph[d].append(p)
                 in_degree[p] += 1
-                
-    # 入次数0（依存なし）のノードをヒープに追加
-    queue = [p for p, deg in in_degree.items() if deg == 0]
-    heapq.heapify(queue)
-    
+
     res = []
-    while queue:
-        node = heapq.heappop(queue) # アルファベット順に取り出される
-        res.append(node)
-        for neighbor in graph[node]:
-            in_degree[neighbor] -= 1
-            if in_degree[neighbor] == 0:
-                heapq.heappush(queue, neighbor)
-                
+    # 同じ波（深さ）のパッケージをまとめてアルファベット順に処理する
+    frontier = sorted(p for p, deg in in_degree.items() if deg == 0)
+    while frontier:
+        next_frontier = set()
+        for node in frontier:
+            res.append(node)
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    next_frontier.add(neighbor)
+        frontier = sorted(next_frontier)
+
     return res if len(res) == len(packages) else []
 ```
+
+### 解説
+入次数（in-degree）0のパッケージを「波（frontier)」としてまとめて取り出し、波の中はアルファベット順に処理します。ある波を処理し終えてから初めて次の波（新たに入次数0になったパッケージ）に進むので、後の波のパッケージが先の波のパッケージを追い越すことがありません。処理できるパッケージが尽きた時点で全パッケージを消化できていなければ循環依存として `[]` を返します。
 
 ---
 

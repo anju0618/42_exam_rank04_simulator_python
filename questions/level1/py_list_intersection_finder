@@ -1,5 +1,3 @@
-py_list_intersection_finder
-py_list_intersection_finder.py
 Assignment
 Write a function that finds the intersection of multiple sorted lists.
 Return a new list containing elements that appear in ALL input lists, in sorted order.
