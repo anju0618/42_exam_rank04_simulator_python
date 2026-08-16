@@ -3,11 +3,14 @@
 
 Reads problem briefs from questions/level{1,2,3}/, generates stub files
 to solve under simulator/workspace/, and grades them against the test
-cases below with a tiny shell-like CLI (ls / cat / grade / grademe / help / exit).
+cases below with a tiny shell-like CLI (ls / cat / grade / grademe / next /
+help / exit).
 
 On startup, one problem is drawn at random and shown immediately, mimicking
 being handed a single exercise during the real exam. `grademe` (no argument)
-always grades that current exercise's stub file.
+always grades that current exercise's stub file. `next` moves on to another
+exercise. Problems are drawn without replacement from a shuffled bag that
+refills once exhausted, so every problem comes up before any repeats.
 """
 import os
 import sys
@@ -128,10 +131,15 @@ def relpath(path):
 
 
 current = {"name": None}
+remaining = []
 
 
 def pick_current_problem():
-    current["name"] = random.choice(list(PROBLEMS))
+    global remaining
+    if not remaining:
+        remaining = list(PROBLEMS)
+        random.shuffle(remaining)
+    current["name"] = remaining.pop()
 
 
 def show_current_problem():
@@ -212,6 +220,7 @@ def cmd_help():
     print("  cat <name>              : View a problem's brief and signature")
     print("  grade <name>            : Test and grade a specific problem")
     print("  grademe                 : Test and grade your current exercise")
+    print("  next                    : Move on to the next exercise")
     print("  help                    : Show this help message")
     print("  exit / quit             : Exit simulator")
 
@@ -246,6 +255,10 @@ def main():
             cmd_grade(args[0])
         elif action == "grademe":
             cmd_grademe()
+        elif action == "next":
+            pick_current_problem()
+            print()
+            show_current_problem()
         elif action == "help":
             cmd_help()
         else:
