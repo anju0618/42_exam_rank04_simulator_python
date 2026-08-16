@@ -1,6 +1,6 @@
 # Exam Rank 04 - Python Solutions & Explanations
 
-このリポジトリは、Exam Rank 04 の各問題に対するPythonでの解答、詳細な解説、および別解（より効率的なアプローチなど）をまとめたものです。
+このリポジトリは、Exam Rank 04 の各問題に対するPythonでの解答、詳細な解説、および別解（よりシンプルだが低速なアプローチなど）をまとめたものです。`Ans/` 配下の実装は、各問題ごとに検討した中で最も効率が良い（または最もバランスの良い）解法を採用しています。
 
 ---
 
@@ -42,14 +42,45 @@ def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
 ```
 
 ### 解説
-入次数（in-degree）0のパッケージを「波（frontier)」としてまとめて取り出し、波の中はアルファベット順に処理します。ある波を処理し終えてから初めて次の波（新たに入次数0になったパッケージ）に進むので、後の波のパッケージが先の波のパッケージを追い越すことがありません。処理できるパッケージが尽きた時点で全パッケージを消化できていなければ循環依存として `[]` を返します。
+入次数（in-degree）0のパッケージを「波（frontier）」としてまとめて取り出し、波の中はアルファベット順に処理します。ある波を処理し終えてから初めて次の波（新たに入次数0になったパッケージ）に進むので、後の波のパッケージが先の波のパッケージを追い越すことがありません。計算量は頂点数・辺数に対して `O(V log V + E)`（各波でのソートを含む）で、処理できるパッケージが尽きた時点で全パッケージを消化できていなければ循環依存として `[]` を返します。他の実装（`min()` 逐次選択や単一の優先度付きキュー）はどちらも波の概念を持たないため、上記のタイブレーク問題を起こします。
 
 ---
 
 ## 2. Palindrome Partitioner
 文字列を回文のみのサブ文字列に分割するための、最小カット数を求める問題。
 
-### 解答（DPによる解法）
+### 解答（回文判定テーブル + DPによる `O(n²)` 解法）
+```python
+def palindrome_partitioner(s: str) -> int:
+    n = len(s)
+    if n <= 1:
+        return 0
+
+    # is_pal[i][j]: s[i:j+1] が回文かどうかをO(1)で引けるように事前計算
+    is_pal = [[False] * n for _ in range(n)]
+    for i in range(n):
+        is_pal[i][i] = True
+    for length in range(2, n + 1):
+        for i in range(n - length + 1):
+            j = i + length - 1
+            is_pal[i][j] = s[i] == s[j] and (length == 2 or is_pal[i + 1][j - 1])
+
+    dp = [0] * n
+    for i in range(n):
+        if is_pal[0][i]:
+            continue  # 先頭からi文字目までがすでに回文ならカット不要
+        # j=iは常にis_pal[i][i]=Trueなので、この内包表記が空になることはない
+        dp[i] = min(dp[j - 1] + 1 for j in range(1, i + 1) if is_pal[j][i])
+    return dp[-1]
+```
+
+### 解説
+まず `is_pal[i][j]` に「`s[i]` から `s[j]` までが回文かどうか」を短い部分文字列から順にボトムアップで埋めていきます（`is_pal[i][j]` は `s[i] == s[j]` かつ内側 `is_pal[i+1][j-1]` が回文であれば真）。これにより、以降のDPで毎回スライス・反転して回文判定する必要がなくなり、`O(1)` で判定できます。次に `dp[i]` に「先頭から `i` 文字目までの最小カット数」を記録し、`s[j:i+1]` が回文であれば `dp[i]` を `dp[j-1] + 1` で更新できます。
+
+事前計算テーブルを使わずに毎回 `s[j:i] == s[j:i][::-1]` でスライス・反転して判定すると、判定1回が `O(n)` かかるため全体で `O(n³)` になってしまいます。テーブル化することで判定が `O(1)` になり、全体の計算量が真の `O(n²)`（時間・空間とも）に落ちるのがこの解法のポイントです。
+
+### 別解1（毎回スライス比較するシンプルなDP、`O(n³)`）
+書きやすさを優先するならこちらでも正解は得られます。
 ```python
 def palindrome_partitioner(s: str) -> int:
     if not s or s == s[::-1]: return 0
@@ -61,11 +92,8 @@ def palindrome_partitioner(s: str) -> int:
     return dp[-1]
 ```
 
-### 解説
-`dp[i]` に「文字列の `i` 文字目までの最小カット数」を記録します。部分文字列 `s[j:i]` が回文であれば、`dp[i]` は `dp[j] + 1` で更新できる可能性があります。
-
-### 別解（メモ化再帰による解法）
-場合によってはトップダウンのほうが直感的なことがあります。
+### 別解2（メモ化再帰、`O(n³)` 相当 + 文字列ハッシュのオーバーヘッド）
+トップダウンのほうが直感的な場合はこちら。ただし `lru_cache` が部分文字列そのものをキーにするため、ハッシュ計算とスライス生成のオーバーヘッドが大きく、実用上は最も遅くなりがちです。
 ```python
 from functools import lru_cache
 
@@ -87,31 +115,30 @@ def palindrome_partitioner(s: str) -> int:
 ## 3. Array Rotation Detector
 配列 `arr2` が `arr1` を回転させたものかどうかを判定する問題。
 
-### 解答（スライスを使った直感的な解法）
+### 解答（連結配列アプローチ）
+`arr1` を2つ繋げたもの（`arr1 + arr1`）の中に、`arr2` が部分配列として含まれていれば、それは回転であると言えます。
+```python
+def array_rotation_detector(arr1: list, arr2: list) -> bool:
+    if len(arr1) != len(arr2):
+        return False
+    if not arr1:
+        return True
+    n = len(arr1)
+    doubled = arr1 + arr1  # 連結を1回だけ行い、部分列としてarr2を探す
+    return any(doubled[i:i + n] == arr2 for i in range(n))
+```
+
+### 解説
+配列の連結（`arr1 + arr1`）を1回だけ行い、そこから長さ `n` のウィンドウを `n` 通り切り出して `arr2` と比較します。判定自体はどちらの解法でも最悪 `O(n²)`（比較 `n` 回 × 各比較 `O(n)`）ですが、下記の別解のように毎回 `arr1[i:] + arr1[:i]` で新しいリストを作り直すのに比べて、連結を1回にまとめている分メモリ確保の回数が少なく、意図も読み取りやすくなっています。
+
+> 補足: 要素の型が固定でハッシュ可能なら、文字列に変換して `in` 演算子（CPythonの高速な部分文字列探索）に載せることで平均 `O(n)` まで縮められますが、要素の `repr` 表現が衝突しないことを保証する必要があり、汎用性とのトレードオフになるためここでは採用していません。
+
+### 別解（毎回スライスして比較するシンプルな解法）
 ```python
 def array_rotation_detector(arr1: list, arr2: list) -> bool:
     if len(arr1) != len(arr2): return False
     if not arr1: return True
     return any(arr1[i:] + arr1[:i] == arr2 for i in range(len(arr1)))
-```
-
-### 解説
-`arr1[i:] + arr1[:i]` で、配列を `i` 個分ずらした新しいリストを作成し、それが `arr2` と一致するかを `any()` で探します。
-
-### 別解（リスト結合アプローチ）
-実は `arr1` を2つ繋げたもの（`arr1 + arr1`）の中に、`arr2` が部分配列として含まれていれば、それは回転であると言えます。これを応用すると高速に判定できます。
-```python
-def array_rotation_detector(arr1: list, arr2: list) -> bool:
-    if len(arr1) != len(arr2): return False
-    if not arr1: return True
-    # 文字列などに変換して検索するテクニック（要素の型に注意が必要）
-    # Pythonではリストの部分一致判定は自前でやる必要があるため、少し工夫
-    n = len(arr1)
-    double_arr = arr1 + arr1
-    for i in range(n):
-        if double_arr[i:i+n] == arr2:
-            return True
-    return False
 ```
 
 ---
@@ -127,10 +154,10 @@ def constellation_mapper(stars: list[tuple[int, int]], size: int) -> list[str]:
 ```
 
 ### 解説
-指定された座標を `set` に変換することで、「その座標に星があるか？」というチェックを高速化します。あとは `size` 回の二重ループ（内包表記）でグリッドを作ります。
+指定された座標を `set` に変換することで、「その座標に星があるか？」というチェックを `O(1)` に高速化します。あとは `size` 回の二重ループ（内包表記）でグリッドを作るので、全体の計算量は `O(size² + len(stars))` となり、これ以上の改善余地はありません。
 
 ### 別解（標準的なforループ）
-初心者に優しく、副作用を気にせず拡張しやすい書き方。
+初心者に優しく、副作用を気にせず拡張しやすい書き方。計算量は解答と同じです。
 ```python
 def constellation_mapper(stars: list[tuple[int, int]], size: int) -> list[str]:
     grid = []
@@ -159,7 +186,7 @@ def list_intersection_finder(lists: list[list[int]]) -> list[int]:
 ```
 
 ### 解説
-Pythonの組み込み機能である `set.intersection()` は、可変長引数（`*lists`）を受け取ることができます。これを利用すると、C言語レベルで最適化された高速な積集合計算が行われます。
+Pythonの組み込み機能である `set.intersection()` は、可変長引数（`*lists`）を受け取ることができます。これを利用すると、C言語レベルで最適化された積集合計算が行われるため、Python側でループを書くよりも高速です。
 
 ### 別解（Counterを使った解法）
 もし `set` が使えない縛りがある場合は、カウントを使います。
@@ -168,12 +195,12 @@ from collections import Counter
 
 def list_intersection_finder(lists: list[list[int]]) -> list[int]:
     if not lists or not all(lists): return []
-    
+
     # 各リスト内の重複を排除してからカウント
     counter = Counter()
     for lst in lists:
         counter.update(set(lst))
-        
+
     num_lists = len(lists)
     return sorted([num for num, count in counter.items() if count == num_lists])
 ```
@@ -183,65 +210,70 @@ def list_intersection_finder(lists: list[list[int]]) -> list[int]:
 ## 6. Merge Sorted List
 複数のソート済みリストを1つのソート済みリストにマージする問題。
 
-### 解答（フラット化 + ソート）
+### 解答（`heapq.merge` によるメモリ効率最強版）
+各リストがすでにソート済みであることを最大限に活かすなら、Python標準ライブラリの `heapq.merge` が最適です。
+```python
+import heapq
+
+
+def merge_sorted_list(lists: list[list[int]]) -> list[int]:
+    # 各リストがソート済みであることを利用し、O(N log K) でマージする
+    return list(heapq.merge(*lists))
+```
+
+### 解説
+`heapq.merge` は各入力リストの先頭同士だけを比較する `K` 要素サイズの最小ヒープを内部で保持し、全体を舐め直すことなく `O(N log K)`（`N` は全要素数、`K` はリスト数）でマージします。さらにイテレータとして値を生成するためメモリ効率も良く、`K << N` のケースでは下記の別解より明確に高速です。
+
+### 別解（フラット化 + ソート、`O(N log N)`）
+`K` の値が大きくなく、コードのシンプルさを優先したい場合はこちらでも十分です。
 ```python
 def merge_sorted_list(lists: list[list[int]]) -> list[int]:
     return sorted(x for l in lists for x in l)
 ```
-
-### 解説
-二重の内包表記 `x for l in lists for x in l` は、2次元リストを1次元に平坦化する定番の書き方です。それに `sorted()` をかけるだけで要件を満たせます。
-
-### 別解（heapq.merge を使ったメモリ効率最強版）
-すでに各リストがソート済みであることを最大限に活かすなら、Python標準ライブラリの `heapq.merge` が最適です。これはメモリを節約しながら $O(N \log K)$ （Nは全要素数、Kはリスト数）でマージします。
-```python
-import heapq
-
-def merge_sorted_list(lists: list[list[int]]) -> list[int]:
-    # heapq.mergeはイテレータを返すのでリスト化する
-    return list(heapq.merge(*lists))
-```
+二重の内包表記 `x for l in lists for x in l` で2次元リストを1次元に平坦化し、`sorted()` をかけるだけですが、各リストがソート済みという前提を活かせていないため `heapq.merge` より計算量で劣ります。
 
 ---
 
 ## 7. Sliding Window Maximum
 スライディングウィンドウ内の最大値を順次取得する問題。
 
-### 解答（スライス + maxのシンプル版）
+### 解答（Dequeを使った `O(N)` の最強版）
+単調減少キュー（Monotonic Queue）を使い、ウィンドウ内の「最大値の候補」のみをインデックスで保持することで計算量を `O(N)` に抑えます。
+```python
+from collections import deque
+
+
+def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
+    if not nums or k <= 0:
+        return []
+
+    dq = deque()  # ウィンドウ内の「最大値になり得る候補」のインデックスを単調減少で保持
+    res = []
+
+    for i, num in enumerate(nums):
+        # ウィンドウの範囲外になった古いインデックスを削除
+        if dq and dq[0] <= i - k:
+            dq.popleft()
+
+        # これから追加する値以下の要素は、今後絶対に最大値にならないので削除
+        while dq and nums[dq[-1]] < num:
+            dq.pop()
+
+        dq.append(i)
+
+        if i >= k - 1:
+            res.append(nums[dq[0]])
+
+    return res
+```
+
+### 解説
+各要素は高々1回ずつ `dq` に追加され、高々1回ずつ取り除かれる（`popleft` または `pop`）ため、ループ全体では償却 `O(N)` で動作します。キューの先頭 `dq[0]` は常にウィンドウ内の最大値のインデックスになるように保たれます。
+
+### 別解（スライス + maxのシンプル版、`O(N × K)`）
+可読性と短さを極限まで高めたアプローチです。実用上はこれでも正しく動きますが、ウィンドウの数 `N - K + 1` それぞれで `max()` を計算し直すため、巨大な配列だと遅くなります。
 ```python
 def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
     if not nums or k <= 0: return []
     return [max(nums[i:i+k]) for i in range(len(nums) - k + 1)]
-```
-
-### 解説
-可読性と短さを極限まで高めたアプローチです。実用上はこれでも動きますが、計算量は $O(N \times K)$ となるため、巨大な配列だと遅くなります。
-
-### 別解（Dequeを使った $O(N)$ の最強版）
-アルゴリズム面で高い評価を得るためには、単調減少キュー（Monotonic Queue）を使います。ウィンドウ内の「最大値の候補」のみをインデックスで保持するため計算量は $O(N)$ になります。
-```python
-from collections import deque
-
-def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
-    if not nums or k <= 0: return []
-    
-    dq = deque()
-    res = []
-    
-    for i in range(len(nums)):
-        # ウィンドウの範囲外になった古いインデックスを削除
-        if dq and dq[0] < i - k + 1:
-            dq.popleft()
-            
-        # これから追加する値よりも小さい要素は、今後絶対に最大値にならないので削除
-        while dq and nums[dq[-1]] < nums[i]:
-            dq.pop()
-            
-        dq.append(i)
-        
-        # ウィンドウのサイズがkに達したら結果に追加
-        if i >= k - 1:
-            res.append(nums[dq[0]])
-            
-    return res
 ```

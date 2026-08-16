@@ -1,2 +1,6 @@
+import heapq
+
+
 def merge_sorted_list(lists: list[list[int]]) -> list[int]:
-    return sorted(x for l in lists for x in l)
+    # 各リストがソート済みであることを利用し、O(N log K) でマージする
+    return list(heapq.merge(*lists))
