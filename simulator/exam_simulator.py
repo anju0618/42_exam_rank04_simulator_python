@@ -3,10 +3,15 @@
 
 Reads problem briefs from questions/level{1,2,3}/, generates stub files
 to solve under simulator/workspace/, and grades them against the test
-cases below with a tiny shell-like CLI (ls / cat / grade / help / exit).
+cases below with a tiny shell-like CLI (ls / cat / grade / grademe / help / exit).
+
+On startup, one problem is drawn at random and shown immediately, mimicking
+being handed a single exercise during the real exam. `grademe` (no argument)
+always grades that current exercise's stub file.
 """
 import os
 import sys
+import random
 import importlib.util
 
 SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -122,6 +127,18 @@ def relpath(path):
     return os.path.relpath(path, ROOT_DIR)
 
 
+current = {"name": None}
+
+
+def pick_current_problem():
+    current["name"] = random.choice(list(PROBLEMS))
+
+
+def show_current_problem():
+    print("=== Your exercise ===")
+    cmd_cat(current["name"])
+
+
 def cmd_ls():
     for level in (1, 2, 3):
         names = sorted(n for n, p in PROBLEMS.items() if p["level"] == level)
@@ -181,22 +198,34 @@ def cmd_grade(name):
         print(f"\n[-] FAILURE: {name} failed some tests.")
 
 
+def cmd_grademe():
+    name = current["name"]
+    if name is None:
+        print("grademe: no current exercise")
+        return
+    cmd_grade(name)
+
+
 def cmd_help():
     print("Available commands:")
     print("  ls                      : List all problems by level")
     print("  cat <name>              : View a problem's brief and signature")
-    print("  grade <name>            : Test and grade your implementation")
+    print("  grade <name>            : Test and grade a specific problem")
+    print("  grademe                 : Test and grade your current exercise")
     print("  help                    : Show this help message")
     print("  exit / quit             : Exit simulator")
 
 
 def main():
     print("=== 42 Exam Rank 04 Simulator ===")
-    print("Type 'help' for available commands.\n")
+    pick_current_problem()
+    print()
+    show_current_problem()
+    print("\nType 'help' for available commands.\n")
 
     while True:
         try:
-            cmd = input("amakino@42:exam4 (main)> ").strip()
+            cmd = input(f"amakino@42:exam4 ({current['name']})> ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\nExiting exam simulator.")
             break
@@ -215,6 +244,8 @@ def main():
             cmd_cat(args[0])
         elif action == "grade" and args:
             cmd_grade(args[0])
+        elif action == "grademe":
+            cmd_grademe()
         elif action == "help":
             cmd_help()
         else:
