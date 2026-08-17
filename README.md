@@ -216,7 +216,33 @@ def list_intersection_finder(lists: list[list[int]]) -> list[int]:
 
 > **注意（禁止built-in）**: 本番のmoulinetteでは `sorted()` / `.sort()` / `heapq.merge()` が**禁止**されており、手動でマージアルゴリズムを実装する必要があります（`questions/level2/py_merge_sorted_list` に明記）。`Ans/` と `Ans_normal/` はこの制約を満たす手動実装、`Ans_short/` はあえて制約を無視した最短版です。
 
-### 解答（自前の二分ヒープによる `O(N log K)`、禁止built-inなし）
+### おすすめ暗記版（`Ans_normal`：ペアワイズマージ、シンプルで確実）
+本番で緊張していても書ける・思い出せることを優先するなら、まずはこちらを覚えるのがおすすめです。
+```python
+def merge_sorted_list(lists: list[list[int]]) -> list[int]:
+    def merge_two(a, b):
+        merged, i, j = [], 0, 0
+        while i < len(a) and j < len(b):
+            if a[i] <= b[j]:
+                merged.append(a[i]); i += 1
+            else:
+                merged.append(b[j]); j += 1
+        merged.extend(a[i:])
+        merged.extend(b[j:])
+        return merged
+
+    result = []
+    for lst in lists:
+        result = merge_two(result, lst)
+    return result
+```
+
+**考え方**: 2つのソート済みリストをマージする定番`merge_two`（両方の先頭を比較して小さい方を取る、片方が尽きたら残りを丸ごと`extend`）を、リストを1つずつ`result`に統合しながら繰り返し使うだけです。`sorted`も`heapq`も一切使わないので確実に制約を満たせます。空リストが混ざっても`merge_two`が自然に処理してくれます。
+
+計算量は`O(N×K)`（下記のヒープ版の`O(N log K)`より劣る）ですが、シンプルさと再現性を優先するならこちらで十分です。
+
+### 発展版（`Ans`：自前の二分ヒープによる `O(N log K)`）
+時間に余裕があれば、もう少し速い自前ヒープ版も見ておくと安心です。`push`/`pop`を手書きするので長めですが、典型的な二分ヒープの型そのものなので、一度書き方を覚えておくと他の問題にも応用できます。
 ```python
 def merge_sorted_list(lists: list[list[int]]) -> list[int]:
     heap = []
@@ -262,29 +288,7 @@ def merge_sorted_list(lists: list[list[int]]) -> list[int]:
     return result
 ```
 
-### 解説
-`heapq` モジュール自体は禁止されているので、push/popの二分ヒープ操作を自前で書きます。各リストの「今見えている先頭要素」だけをヒープに積み、popした要素の次の要素を代わりに積み直すことで、全体を`O(N log K)`（`N`は全要素数、`K`はリスト数）でマージできます。
-
-### 別解（`Ans_normal`、ペアワイズマージでシンプルに）
-```python
-def merge_sorted_list(lists: list[list[int]]) -> list[int]:
-    def merge_two(a, b):
-        merged, i, j = [], 0, 0
-        while i < len(a) and j < len(b):
-            if a[i] <= b[j]:
-                merged.append(a[i]); i += 1
-            else:
-                merged.append(b[j]); j += 1
-        merged.extend(a[i:])
-        merged.extend(b[j:])
-        return merged
-
-    result = []
-    for lst in lists:
-        result = merge_two(result, lst)
-    return result
-```
-2つのソート済みリストをマージする定番の`merge_two`を、リストの数だけ繰り返し適用します。ヒープより計算量では劣りますが（`O(N×K)`程度）、コードが素直で書きやすいです。
+**解説**: `heapq` モジュール自体は禁止されているので、push/popの二分ヒープ操作を自前で書きます。各リストの「今見えている先頭要素」だけをヒープに積み、popした要素の次の要素を代わりに積み直すことで、全体を`O(N log K)`（`N`は全要素数、`K`はリスト数）でマージできます。
 
 ### 別解（`Ans_short`、制約無視の最短版・**本番では使用不可**）
 ```python
