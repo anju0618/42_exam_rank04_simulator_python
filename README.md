@@ -48,6 +48,12 @@ def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
 ### 解説
 入次数（in-degree）0のパッケージを「波（frontier）」としてまとめて取り出し、波の中はアルファベット順に処理します。ある波を処理し終えてから初めて次の波（新たに入次数0になったパッケージ）に進むので、後の波のパッケージが先の波のパッケージを追い越すことがありません。計算量は頂点数・辺数に対して `O(V log V + E)`（各波でのソートを含む）で、処理できるパッケージが尽きた時点で全パッケージを消化できていなければ循環依存として `[]` を返します。他の実装（`min()` 逐次選択や単一の優先度付きキュー）はどちらも波の概念を持たないため、上記のタイブレーク問題を起こします。
 
+**覚えるポイント**:
+- Kahnのアルゴリズムの型を覚える: `graph[dep]`に「depを待っている側」を、`in_degree[name]`に「まだ残っている依存の数」を入れる
+- 依存が0個になったノードを`sorted()`で1つの「波」としてまとめて取り出し、波ごと丸ごと`res`に積む（`min()`で1個ずつ拾ってはいけない — タイブレークがズレる）
+- `packages`に存在しないキーへの依存は`if d in packages:`で無視する
+- 波を出し切っても`len(res) != len(packages)`なら循環依存 → `[]`
+
 ---
 
 ## 2. Palindrome Partitioner
@@ -114,6 +120,11 @@ def palindrome_partitioner(s: str) -> int:
     return dfs(s)
 ```
 
+**覚えるポイント**:
+- 先に「回文判定テーブル」を短い部分文字列から埋める型を覚える: `is_pal[i][j] = s[i]==s[j] and is_pal[i+1][j-1]`
+- `dp[i]` = 「先頭`i`文字を回文だけに分割するのに必要な最小カット数」。`s[j:i+1]`が回文なら`dp[i] = min(dp[i], dp[j-1]+1)`
+- 一番シンプルに書きたいだけなら、テーブルを作らず毎回`s[j:i]==s[j:i][::-1]`で判定する別解1でもOK（`O(n³)`だが短い）
+
 ---
 
 ## 3. Array Rotation Detector
@@ -144,6 +155,10 @@ def array_rotation_detector(arr1: list, arr2: list) -> bool:
     if not arr1: return True
     return any(arr1[i:] + arr1[:i] == arr2 for i in range(len(arr1)))
 ```
+
+**覚えるポイント**:
+- 長さ不一致 → `False`、空配列同士 → `True` を最初に判定しておく（`not arr1`のチェックを先にやらないと空同士の`True`判定を取りこぼす）
+- `arr1 + arr1`（or `arr1[i:] + arr1[:i]`）は「配列を回転させる」ときの定番イディオムとして覚える
 
 ---
 
@@ -177,6 +192,11 @@ def constellation_mapper(stars: list[tuple[int, int]], size: int) -> list[str]:
     return grid
 ```
 
+**覚えるポイント**:
+- 座標を`set`に入れるだけで重複座標は自動的に消える
+- `range(size)`だけを走査するので、範囲外の座標はそもそも見に行かれず自動的に無視される
+- 「範囲外・重複を無視」という要件のために特別な分岐は不要で、「setを使う」＋「range(size)だけ回す」の2点で自然に満たされる
+
 ---
 
 ## 5. List Intersection Finder
@@ -208,6 +228,10 @@ def list_intersection_finder(lists: list[list[int]]) -> list[int]:
     num_lists = len(lists)
     return sorted([num for num, count in counter.items() if count == num_lists])
 ```
+
+**覚えるポイント**:
+- `not lists`（外側が空）と`not all(lists)`（中に1つでも空リストがある）を先にチェックして`[]`を返す（`all()`は空リストを`False`扱いする性質を利用）
+- `set(lists[0]).intersection(*lists)`で全リストとの積集合を一発計算、`sorted()`で仕上げる
 
 ---
 
@@ -343,6 +367,12 @@ def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
     return [max(nums[i:i+k]) for i in range(len(nums) - k + 1)]
 ```
 
+**覚えるポイント**:
+- `dq`（またはインデックスリスト）は「今後ウィンドウ内の最大値になり得るインデックス」だけを単調減少で保持する
+- 新しい値を入れる前に2つの掃除をする: ①窓の外に出た古いインデックスを先頭から削除、②新しい値以下の要素は今後絶対に最大値にならないので末尾から削除
+- 先頭（`dq[0]`）が常に現在のウィンドウの最大値のインデックスになる
+- 短く書きたいだけなら`[max(nums[i:i+k]) for i in range(len(nums)-k+1)]`でも正解（`O(N×K)`だが1行で書ける）
+
 ---
 
 ## Simulator Usage / シミュレーターの使い方
@@ -408,4 +438,3 @@ python3 simulator/exam_simulator.py
 - `exit` / `quit` — シミュレーターを終了
 
 各問題は `simulator/workspace/level<N>/<name>.py` のスタブファイルを編集して解答し、`grademe` で採点してください。
-```
