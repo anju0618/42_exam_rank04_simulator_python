@@ -3,8 +3,9 @@ def package_dependency_resolver(packages: dict[str, list[str]]) -> list[str]:
     graph = {p: [] for p in packages}
     for p, deps in packages.items():
         for d in deps:
-            graph[d].append(p)
-            deg[p] += 1
+            if d in packages:
+                graph[d].append(p)
+                deg[p] += 1
 
     res, wave = [], sorted(p for p in deg if deg[p] == 0)
     while wave:

@@ -2,6 +2,8 @@ Assignment
 You are given a list of sorted integer sublists in any order.
 Merge all sublists into a single sorted list in ascending order and return it.
 
+Forbidden built-ins / modules: sorted(), .sort(), heapq.merge(). Implement the algorithm manually!
+
 Constraints:
 - The outer list may be empty -> return []
 - Empty sublists may exist and should be ignored.

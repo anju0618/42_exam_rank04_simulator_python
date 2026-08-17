@@ -4,13 +4,21 @@
 Reads problem briefs from questions/level{1,2,3}/, generates stub files
 to solve under simulator/workspace/, and grades them against the test
 cases below with a tiny shell-like CLI (ls / cat / grade / grademe / next /
-help / exit).
+mode / help / exit).
 
-On startup, one problem is drawn at random and shown immediately, mimicking
-being handed a single exercise during the real exam. `grademe` (no argument)
-always grades that current exercise's stub file. `next` moves on to another
-exercise. Problems are drawn without replacement from a shuffled bag that
-refills once exhausted, so every problem comes up before any repeats.
+On startup you pick one of three modes for how `next` draws a problem:
+- sequential (1): walk through every problem in a fixed order (level1 -> 2
+  -> 3, alphabetical within a level), wrapping back to the start at the end.
+  Good for reviewing every problem in order.
+- exam (2, default): mimics being handed a single exercise during the real
+  exam. Problems are drawn without replacement from a shuffled bag that
+  refills once exhausted, so every problem comes up before any repeats.
+- random (3): a fully independent random pick each time, repeats allowed.
+  Good for quick, unpredictable drilling.
+
+`grademe` (no argument) always grades the current exercise's stub file.
+`next` moves on to another exercise according to the active mode. `mode`
+switches the active mode without restarting.
 """
 import os
 import sys
@@ -130,16 +138,42 @@ def relpath(path):
     return os.path.relpath(path, ROOT_DIR)
 
 
+MODES = ("sequential", "exam", "random")
+
+# level1 -> level2 -> level3, alphabetical within a level.
+SEQUENCE = sorted(PROBLEMS, key=lambda name: (PROBLEMS[name]["level"], name))
+
 current = {"name": None}
+mode = {"name": "exam"}
 remaining = []
+seq_index = {"i": 0}
 
 
 def pick_current_problem():
     global remaining
-    if not remaining:
-        remaining = list(PROBLEMS)
-        random.shuffle(remaining)
-    current["name"] = remaining.pop()
+    if mode["name"] == "sequential":
+        current["name"] = SEQUENCE[seq_index["i"] % len(SEQUENCE)]
+        seq_index["i"] += 1
+    elif mode["name"] == "random":
+        current["name"] = random.choice(list(PROBLEMS))
+    else:  # "exam": draw without replacement from a shuffled bag
+        if not remaining:
+            remaining = list(PROBLEMS)
+            random.shuffle(remaining)
+        current["name"] = remaining.pop()
+
+
+def cmd_mode(args):
+    if not args:
+        print(f"Current mode: {mode['name']}  (choices: {', '.join(MODES)})")
+        return
+    choice = args[0].lower()
+    if choice not in MODES:
+        print(f"mode: {choice}: unknown mode (choices: {', '.join(MODES)})")
+        return
+    mode["name"] = choice
+    seq_index["i"] = 0
+    print(f"Mode switched to: {choice}")
 
 
 def show_current_problem():
@@ -221,12 +255,27 @@ def cmd_help():
     print("  grade <name>            : Test and grade a specific problem")
     print("  grademe                 : Test and grade your current exercise")
     print("  next                    : Move on to the next exercise")
+    print("  mode [sequential|exam|random] : Show or switch the draw mode")
     print("  help                    : Show this help message")
     print("  exit / quit             : Exit simulator")
 
 
+def choose_mode():
+    print("Select a mode / モードを選択してください:")
+    print("  1) sequential (順番モード) - go through every problem in order")
+    print("  2) exam       (本番モード) - one random problem at a time, no repeats until all seen [default]")
+    print("  3) random     (ランダムモード) - fully random each time, repeats allowed")
+    try:
+        choice = input("mode [1/2/3] (default 2): ").strip()
+    except (KeyboardInterrupt, EOFError):
+        choice = ""
+    mode["name"] = {"1": "sequential", "2": "exam", "3": "random", "": "exam"}.get(choice, "exam")
+    print(f"-> mode: {mode['name']}\n")
+
+
 def main():
     print("=== 42 Exam Rank 04 Simulator ===")
+    choose_mode()
     pick_current_problem()
     print()
     show_current_problem()
@@ -234,7 +283,7 @@ def main():
 
     while True:
         try:
-            cmd = input(f"amakino@42:exam4 ({current['name']})> ").strip()
+            cmd = input(f"amakino@42:exam4 [{mode['name']}] ({current['name']})> ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\nExiting exam simulator.")
             break
@@ -259,6 +308,8 @@ def main():
             pick_current_problem()
             print()
             show_current_problem()
+        elif action == "mode":
+            cmd_mode(args)
         elif action == "help":
             cmd_help()
         else:

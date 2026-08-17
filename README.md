@@ -1,6 +1,10 @@
 # Exam Rank 04 - Python Solutions & Explanations
 
-このリポジトリは、Exam Rank 04 の各問題に対するPythonでの解答、詳細な解説、および別解（よりシンプルだが低速なアプローチなど）をまとめたものです。`Ans/` 配下の実装は、各問題ごとに検討した中で最も効率が良い（または最もバランスの良い）解法を採用しています。
+このリポジトリは、Exam Rank 04 の各問題に対するPythonでの解答、詳細な解説、および別解（よりシンプルだが低速なアプローチなど）をまとめたものです。解答は3段階のフォルダに分かれています。
+
+- **`Ans/`**: 本番moulinetteの制約（禁止built-inなど）を守った上で、最速かつ暗記しやすいバランスの良い解法。
+- **`Ans_normal/`**: 同じく制約は守りつつ、読みやすさ・分かりやすさを優先した解法（変数名や処理を明示的に）。
+- **`Ans_short/`**: 制約を無視して良いなら最短で書ける解法。1行で書けて理解確認や別環境での練習には便利ですが、`merge_sorted_list` のように**本番では使えないもの（`sorted()`使用など）が含まれる**ので注意してください。
 
 ---
 
@@ -210,27 +214,84 @@ def list_intersection_finder(lists: list[list[int]]) -> list[int]:
 ## 6. Merge Sorted List
 複数のソート済みリストを1つのソート済みリストにマージする問題。
 
-### 解答（`heapq.merge` によるメモリ効率最強版）
-各リストがすでにソート済みであることを最大限に活かすなら、Python標準ライブラリの `heapq.merge` が最適です。
+> **注意（禁止built-in）**: 本番のmoulinetteでは `sorted()` / `.sort()` / `heapq.merge()` が**禁止**されており、手動でマージアルゴリズムを実装する必要があります（`questions/level2/py_merge_sorted_list` に明記）。`Ans/` と `Ans_normal/` はこの制約を満たす手動実装、`Ans_short/` はあえて制約を無視した最短版です。
+
+### 解答（自前の二分ヒープによる `O(N log K)`、禁止built-inなし）
 ```python
-import heapq
-
-
 def merge_sorted_list(lists: list[list[int]]) -> list[int]:
-    # 各リストがソート済みであることを利用し、O(N log K) でマージする
-    return list(heapq.merge(*lists))
+    heap = []
+
+    def push(item):
+        heap.append(item)
+        i = len(heap) - 1
+        while i > 0:
+            parent = (i - 1) // 2
+            if heap[parent] <= heap[i]:
+                break
+            heap[parent], heap[i] = heap[i], heap[parent]
+            i = parent
+
+    def pop():
+        top = heap[0]
+        last = heap.pop()
+        if heap:
+            heap[0] = last
+            i, n = 0, len(heap)
+            while True:
+                l, r, smallest = 2 * i + 1, 2 * i + 2, i
+                if l < n and heap[l] < heap[smallest]:
+                    smallest = l
+                if r < n and heap[r] < heap[smallest]:
+                    smallest = r
+                if smallest == i:
+                    break
+                heap[i], heap[smallest] = heap[smallest], heap[i]
+                i = smallest
+        return top
+
+    for li, lst in enumerate(lists):
+        if lst:
+            push((lst[0], li, 0))
+
+    result = []
+    while heap:
+        value, li, idx = pop()
+        result.append(value)
+        if idx + 1 < len(lists[li]):
+            push((lists[li][idx + 1], li, idx + 1))
+    return result
 ```
 
 ### 解説
-`heapq.merge` は各入力リストの先頭同士だけを比較する `K` 要素サイズの最小ヒープを内部で保持し、全体を舐め直すことなく `O(N log K)`（`N` は全要素数、`K` はリスト数）でマージします。さらにイテレータとして値を生成するためメモリ効率も良く、`K << N` のケースでは下記の別解より明確に高速です。
+`heapq` モジュール自体は禁止されているので、push/popの二分ヒープ操作を自前で書きます。各リストの「今見えている先頭要素」だけをヒープに積み、popした要素の次の要素を代わりに積み直すことで、全体を`O(N log K)`（`N`は全要素数、`K`はリスト数）でマージできます。
 
-### 別解（フラット化 + ソート、`O(N log N)`）
-`K` の値が大きくなく、コードのシンプルさを優先したい場合はこちらでも十分です。
+### 別解（`Ans_normal`、ペアワイズマージでシンプルに）
+```python
+def merge_sorted_list(lists: list[list[int]]) -> list[int]:
+    def merge_two(a, b):
+        merged, i, j = [], 0, 0
+        while i < len(a) and j < len(b):
+            if a[i] <= b[j]:
+                merged.append(a[i]); i += 1
+            else:
+                merged.append(b[j]); j += 1
+        merged.extend(a[i:])
+        merged.extend(b[j:])
+        return merged
+
+    result = []
+    for lst in lists:
+        result = merge_two(result, lst)
+    return result
+```
+2つのソート済みリストをマージする定番の`merge_two`を、リストの数だけ繰り返し適用します。ヒープより計算量では劣りますが（`O(N×K)`程度）、コードが素直で書きやすいです。
+
+### 別解（`Ans_short`、制約無視の最短版・**本番では使用不可**）
 ```python
 def merge_sorted_list(lists: list[list[int]]) -> list[int]:
     return sorted(x for l in lists for x in l)
 ```
-二重の内包表記 `x for l in lists for x in l` で2次元リストを1次元に平坦化し、`sorted()` をかけるだけですが、各リストがソート済みという前提を活かせていないため `heapq.merge` より計算量で劣ります。
+1行で書けますが `sorted()` を使っているため、本番moulinetteの禁止built-in制約に違反します。理解確認や別環境での練習用と割り切ってください。
 
 ---
 
@@ -276,4 +337,71 @@ def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
 def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
     if not nums or k <= 0: return []
     return [max(nums[i:i+k]) for i in range(len(nums) - k + 1)]
+```
+
+---
+
+## Simulator Usage / シミュレーターの使い方
+
+### English
+
+Run the simulator from the repo root:
+
+```sh
+python3 simulator/exam_simulator.py
+```
+
+On startup it asks you to pick a **mode**, which controls how `next` picks the next problem:
+
+| # | Mode | Behavior |
+|---|------|----------|
+| 1 | `sequential` | Walks through every problem in a fixed order (level1 → level2 → level3, alphabetical within a level), wrapping back to the start at the end. Best for reviewing every problem in order, like a study pass. |
+| 2 | `exam` (default) | Mimics the real exam: draws one problem at random, without repeats, from a shuffled bag that refills once every problem has come up. |
+| 3 | `random` | Fully independent random pick each time — the same problem can come up twice in a row. Good for quick, unpredictable drilling. |
+
+Press Enter with no input to accept the default (`exam`).
+
+Available commands once running:
+
+- `ls` — list all problems by level
+- `cat <name>` — view a problem's brief and its stub file's path
+- `grademe` — run the tests against your current exercise's stub file (under `simulator/workspace/`)
+- `grade <name>` — run the tests against any specific problem's stub file
+- `next` — move on to another exercise, following the active mode
+- `mode` — show the current mode; `mode <sequential|exam|random>` switches it without restarting
+- `help` — show the command list
+- `exit` / `quit` — leave the simulator
+
+Solve each exercise by editing its stub file under `simulator/workspace/level<N>/<name>.py`, then run `grademe` to check it.
+
+### 日本語
+
+リポジトリのルートから実行します。
+
+```sh
+python3 simulator/exam_simulator.py
+```
+
+起動すると **モード**選択を求められます。これは `next` コマンドで次にどの問題が出るかを決めます。
+
+| # | モード | 動作 |
+|---|--------|------|
+| 1 | `sequential`（順番モード） | 全問題を固定順（level1→level2→level3、レベル内はアルファベット順）で1問ずつ出題し、最後まで行くと最初に戻ります。全問を順番に復習したいときに最適です。 |
+| 2 | `exam`（本番モード・デフォルト） | 本番の試験を模して、シャッフルした問題の袋から重複なく1問ずつランダムに出題します。全問出し切ると袋が再シャッフルされます。 |
+| 3 | `random`（ランダムモード） | 毎回完全に独立した抽選を行うので、同じ問題が連続で出ることもあります。短時間でランダムに解く練習向けです。 |
+
+何も入力せずEnterを押すとデフォルト（`exam`）が選ばれます。
+
+起動後に使えるコマンド:
+
+- `ls` — レベルごとに全問題を一覧表示
+- `cat <name>` — 問題文とスタブファイルのパスを表示
+- `grademe` — 今出題されている問題のスタブファイル（`simulator/workspace/`配下）を採点
+- `grade <name>` — 指定した問題のスタブファイルを採点
+- `next` — 現在のモードに従って次の問題に進む
+- `mode` — 現在のモードを表示。`mode <sequential|exam|random>` で再起動せずにモード変更
+- `help` — コマンド一覧を表示
+- `exit` / `quit` — シミュレーターを終了
+
+各問題は `simulator/workspace/level<N>/<name>.py` のスタブファイルを編集して解答し、`grademe` で採点してください。
 ```
