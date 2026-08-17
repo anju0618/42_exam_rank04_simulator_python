@@ -8,5 +8,7 @@ def palindrome_partitioner(s: str) -> int:
         for j in range(i):
             sub = s[j:i]
             if sub == sub[::-1]:  # s[j:i]が回文なら、そこで区切れる
-                dp[i] = min(dp[i], dp[j] + 1)
+                candidate = dp[j] + 1
+                if candidate < dp[i]:
+                    dp[i] = candidate
     return dp[-1]

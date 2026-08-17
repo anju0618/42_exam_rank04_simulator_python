@@ -16,6 +16,11 @@ def palindrome_partitioner(s: str) -> int:
     for i in range(n):
         if is_pal[0][i]:
             continue  # 先頭からi文字目までがすでに回文ならカット不要
-        # j=iは常にis_pal[i][i]=Trueなので、この内包表記が空になることはない
-        dp[i] = min(dp[j - 1] + 1 for j in range(1, i + 1) if is_pal[j][i])
+        best = None
+        for j in range(1, i + 1):
+            if is_pal[j][i]:
+                candidate = dp[j - 1] + 1
+                if best is None or candidate < best:
+                    best = candidate
+        dp[i] = best
     return dp[-1]

@@ -1,25 +1,23 @@
-from collections import deque
-
-
 def sliding_window_maximium(nums: list[int], k: int) -> list[int]:
     if not nums or k <= 0:
         return []
 
-    dq = deque()  # ウィンドウ内の「最大値になり得る候補」のインデックスを単調減少で保持
+    idx = []  # ウィンドウ内で最大値になり得るインデックスを単調減少で保持する自前の両端キュー
+    head = 0
     res = []
 
     for i, num in enumerate(nums):
-        # ウィンドウの範囲外になった古いインデックスを削除
-        if dq and dq[0] <= i - k:
-            dq.popleft()
+        # ウィンドウの範囲外になった古いインデックスは先頭ポインタを進めて無視する
+        if idx and idx[head] <= i - k:
+            head += 1
 
-        # これから追加する値以下の要素は、今後絶対に最大値にならないので削除
-        while dq and nums[dq[-1]] < num:
-            dq.pop()
+        # これから追加する値以下の要素は、今後絶対に最大値にならないので末尾から取り除く
+        while len(idx) > head and nums[idx[-1]] < num:
+            idx.pop()
 
-        dq.append(i)
+        idx.append(i)
 
         if i >= k - 1:
-            res.append(nums[dq[0]])
+            res.append(nums[idx[head]])
 
     return res
