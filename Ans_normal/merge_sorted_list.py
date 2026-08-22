@@ -18,3 +18,20 @@ def merge_sorted_list(lists: list[list[int]]) -> list[int]:
     for lst in lists:
         result = merge_two(result, lst)
     return result
+
+
+def merge_sorted_list(lists: list[list[int]]) -> list[int]:
+    res = []
+    for lst in lists:
+        res.extend(lst)
+
+    for _ in range(len(res) - 1):
+        a = 0
+        b = 1
+        while b < len(res):
+            if res[a] > res[b]:
+                res[a], res[b] = res[b], res[a]
+            a += 1
+            b += 1
+
+    return res
